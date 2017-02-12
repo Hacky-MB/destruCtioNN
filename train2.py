@@ -179,17 +179,17 @@ def plot(it,tst1,tst2,tr1,tr2,l):
 
 	#first save, then show (or save figure - fig = plt.gcf();fig.savefig('awd'))
 	#new figure is created when show() is called
-	plt.savefig('probs'+str(it[-1] if length else "")+'.svg')
+	#plt.savefig('probs'+str(it[-1] if length else "")+'.svg')
 
-	if args.show_plots:
-		plt.show()
-	else:
-		plt.clf()
+	#if args.show_plots:
+	plt.show()
+	#else:
+	plt.clf()
 
 
 	l = np.mean(l.reshape(-1,samples), axis=1) if len(it)>points else l
 
-	plt.plot(it, l, linestyle='-', marker='o', color='red' )
+	plt.plot(x, l, linestyle='-', marker='o', color='red' )
 	red = mpatches.Patch(color='red', label='loss')
 	plt.legend(handles=[red], loc=2, borderaxespad=0.)
 	plt.ylim((0, max(l)+max(l)*0.1 if len(l) else 1))
@@ -198,12 +198,12 @@ def plot(it,tst1,tst2,tr1,tr2,l):
 	plt.xlim((it[0],it[-1]) if len(it) else (0,1))
 
 
-	plt.savefig('loss'+str(it[-1] if len(it) else "")+'.svg')
+	#plt.savefig('loss'+str(it[-1] if len(it) else "")+'.svg')
 
-	if args.show_plots:
-		plt.show()
-	else:
-		plt.clf()
+	#if args.show_plots:
+	plt.show()
+	#else:
+	plt.clf()
 
 
 def parseArgs():
