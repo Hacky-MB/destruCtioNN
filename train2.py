@@ -181,10 +181,10 @@ def plot(it,tst1,tst2,tr1,tr2,l):
 	#new figure is created when show() is called
 	#plt.savefig('probs'+str(it[-1] if length else "")+'.svg')
 
-	#if args.show_plots:
-	plt.show()
-	#else:
-	plt.clf()
+	if args.show_plots:
+		plt.show()
+	else:
+		plt.clf()
 
 
 	l = np.mean(l.reshape(-1,samples), axis=1) if len(it)>points else l
@@ -200,10 +200,10 @@ def plot(it,tst1,tst2,tr1,tr2,l):
 
 	#plt.savefig('loss'+str(it[-1] if len(it) else "")+'.svg')
 
-	#if args.show_plots:
-	plt.show()
-	#else:
-	plt.clf()
+	if args.show_plots:
+		plt.show()
+	else:
+		plt.clf()
 
 
 def parseArgs():
