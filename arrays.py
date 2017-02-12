@@ -38,8 +38,8 @@ def rotate_clockwise(arr,boardSize):
 
 def find_n_max_2d(array,n):
 	'''
-	@return - array [row,col,value] containing coordinates and minimal value
-				of size n
+	@return - array [[row,col,value],...] containing coordinates and maximal value
+				n times
 	'''
 	ret = []
 
@@ -49,7 +49,7 @@ def find_n_max_2d(array,n):
 	for i in range(len(array)):
 		for j in range(len(array[i])):
 
-			#initialize ret
+			#fill "ret" (returned array)
 			if len(ret) < n:
 				ret.append([i,j,array[i][j]])
 
@@ -65,7 +65,9 @@ def find_n_max_2d(array,n):
 						if ret[k][2] == min:
 							ret[k] = [i,j,array[i][j]]
 							break
-	return ret
+
+	#no point in returning value, array is sorted already
+	return [r[0:2] for r in sorted(ret,key=lambda k:k[2])]
 
 
 

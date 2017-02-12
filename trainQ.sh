@@ -33,10 +33,8 @@ do
 	#train net
 	${top_dir}/train2.py -i=10000 -s=${top_dir}/queue/${net_dir}/${solver} -v
 
-	exit
-
 	if [ $? -ne "0" ]; then
-		echo "Error occured while training!" #&& exit
+		echo "Error occured while training!" && exit
 	else
 		#name of directory where to copy results
 		res_dir_name=$((res_dir_name + 1))
