@@ -24,4 +24,4 @@ Dataset was created by downloading AIs from [Gomocup website](http//:www.gomocup
 
 ###Game client
 
-The game client runs on windows and requires .exe file as AI. This file is located in ... and communicates with "play2.py" module using sockets. (IP address is hardcoded for now) I couldn't install caffe framework on windows so I run my game client on virtual machine and my python module on linux as a temporary solution.
+The game client runs on windows and requires .exe file as AI. This file is located in "game client AI" folder and communicates with "play2.py" module using sockets. (IP address is hardcoded for now) I couldn't install caffe framework on windows so I run my game client on virtual machine and my python module on linux as a temporary solution.
