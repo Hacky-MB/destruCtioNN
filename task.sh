@@ -12,7 +12,7 @@
 ## launch as: qsub task.sh
 
 module add python-2.7.10-gcc
-module add cuda-7.5
+module add cuda-8.0
 module add cudnn-5.0
 module add caffe2016-gpu-cudnn
 
