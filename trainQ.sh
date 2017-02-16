@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# This script trains all nets in ./queue directory 
+# This script trains all nets from  subdirectories
+# from ./queue directory and stores results in
+# subdirectories in ./trained directory
 
 if [ -z $1 ]; then
 	echo "Provide directory with nets and training script as argument!" && exit
@@ -13,8 +15,16 @@ if [ ${1: -1} == "/" ]; then
 	top_dir=${top_dir:0:-1}
 fi
 
-#get name of directory of last trained net
-res_dir_name=`ls "${top_dir}/trained" | tail -n1`
+# check if directory with nets exists
+if [ ! -d ${top_dir}/`ls ${top_dir} | grep "^queue$"` ]; then
+    mkdir ${top_dir}/queue
+    echo "Queue directory created."
+    echo "Create directories each with net and solver you want to train."
+    exit
+fi
+
+# create directory with results
+mkdir -p ${top_dir}/trained
 
 #iterate over all directories containing *.solverstate files (net and solver)
 for net_dir in `ls ${top_dir}/queue` # 
@@ -30,6 +40,9 @@ do
 	cp ${top_dir}/queue/${net_dir}/${solver} ${top_dir}
 	cp ${top_dir}/queue/${net_dir}/${net} ${top_dir}
 
+    #switch solver mode to GPU (just in case)
+    cat net_solver.prototxt | sed 's/CPU/GPU/g' > net_solver.prototxt
+
 	#train net
 	${top_dir}/train2.py -i=10000 -s=${top_dir}/queue/${net_dir}/${solver} -v
 
@@ -37,8 +50,7 @@ do
 		echo "Error occured while training!" && exit
 	else
 		#name of directory where to copy results
-		res_dir_name=$((res_dir_name + 1))
-		res_dir=${top_dir}/trained/${res_dir_name}
+		res_dir=${top_dir}/trained/${net_dir}
 
 		#draw net
 		${top_dir}/draw_net.py ${top_dir}/queue/${net_dir}/net_train_val.prototxt net.svg
@@ -52,16 +64,16 @@ do
 		cp ${top_dir}/*.prototxt ${res_dir}
 		cp ${top_dir}/net.svg ${res_dir}
 
-		#rm -r ${top_dir}/queue/${net_dir}
+        rm ${top_dir}/probs*.svg
+        rm ${top_dir}/loss*.svg
+        rm ${top_dir}/stats*.npz
+        rm ${top_dir}/*.solverstate
+        rm ${top_dir}/*.caffemodel
+        rm ${top_dir}/*.prototxt
 		rm ${top_dir}/net.svg
 	fi
 
-	rm ${top_dir}/probs*.svg
-	rm ${top_dir}/loss*.svg
-	rm ${top_dir}/stats*.npz
-	rm ${top_dir}/*.solverstate
-	rm ${top_dir}/*.caffemodel
-	rm ${top_dir}/*.prototxt
+
 
 done
 

@@ -1,20 +1,24 @@
 #!/usr/bin/env python
 
 import numpy as np
-import sys
 import arrays as arrs
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import caffe
 
-
-# Function trains net and returns tuple respectively depending on "mode" argument
-# @param mode == "train" -> @return solver
-# @param mode == "test" -> @return acc(guessed move),acc(move in top 5 most probable),loss
-# @param mode == "play" -> @return list(top 5 probable moves)
+"""
+This module is used for interacting with neural network.
+It trains neural networks and it's used by other scripts for
+playing Gomoku.
+"""
 
 
 def train(solver, boards, moves, mode):
+	# Function trains net and returns tuple respectively depending on "mode" argument
+	# @param mode == "train" -> @return solver
+	# @param mode == "test" -> @return acc(guessed move),acc(move in top 5 most probable),loss
+	# @param mode == "play" -> @return list(top 5 probable moves)
+
 	# load boards
 	solver.net.blobs['data'].data[:, :, :, :] = boards[:, :, :, :]
 
@@ -41,10 +45,9 @@ def train(solver, boards, moves, mode):
 		raise Exception("Wrong mode! (use train/test)")
 
 
-# Function transforms boards and moves (for better training results) and trains net
-
-
 def transform_train(solver, boards, moves):
+	# Function transforms boards and moves (for better training results) and trains net
+
 	transformations = [lambda x, y: x, arrs.fliplr, arrs.flipud]
 
 	board_size = 19
@@ -78,7 +81,7 @@ def transform_train(solver, boards, moves):
 	return solver
 
 
-# Function prepares data
+# Function prepares data and passes them further to NN
 def train_iter(solver, boards, moves, size, mode):
 	# n random moves
 	indices = np.random.choice(boards.shape[0], size)
@@ -234,17 +237,17 @@ if __name__ == "__main__":
 		solver.restore(args.load_snapshot[0])
 		solver.test_nets[0].share_with(solver.net)
 
-	file = np.load(args.dataset)
+	f = np.load(args.dataset)
 
-	boards = file['boards']
-	moves = file['moves']
+	boards = f['boards']
+	moves = f['moves']
 
 	it = np.array([]) 	# number of iterations passed
-	test_guess = np.array([],dtype=float)  	# correct guess (0-1) on test set
-	test_guess_n = np.array([],dtype=float)  	# guess in tom 5 most probable on test set
-	train_guess = np.array([],dtype=float)  	# correct guess (0-1) on train set
-	train_guess_n = np.array([],dtype=float)  	# guess in tom 5 most probable on train set
-	loss = np.array([],dtype=float)		# outpus of loss function layer
+	test_guess = np.array([], dtype=float)  	# correct guess (0-1) on test set
+	test_guess_n = np.array([], dtype=float)  	# guess in tom 5 most probable on test set
+	train_guess = np.array([], dtype=float)  	# correct guess (0-1) on train set
+	train_guess_n = np.array([], dtype=float)  	# guess in tom 5 most probable on train set
+	loss = np.array([], dtype=float)		# output of loss function layer
 
 	batch_size = 32
 
@@ -269,7 +272,7 @@ if __name__ == "__main__":
 			# train_guess_n = np.append(train_guess_n, float(train_n_guess))
 			loss = np.append(loss, float(cur_loss))
 
-	except KeyboardInterrupt:
+	except:
 		pass
 
 	if args.save_snapshot:

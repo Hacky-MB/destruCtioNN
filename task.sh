@@ -1,10 +1,13 @@
 #!/bin/bash
+
+# This script is used as a submitted task in Metacentrum
+
 #PBS -N NN_training
 #PBS -q gpu
 #PBS -l scratch=300mb
 #PBS -l walltime=2h
 #PBS -l nodes=1:ppn=16:gpu=2
-#PBS -l mem=1gb
+#PBS -l mem=4gb
 
 ## launch as: qsub task.sh
 
