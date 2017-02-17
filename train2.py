@@ -38,8 +38,12 @@ def train(solver, boards, moves, mode):
 
 	elif mode == "play":
 		solver.net.forward()
+
+		# find last convolution layer name
+		last_conv = sorted([layer for layer in solver.net.blobs.keys() if layer[0:4] == "conv"])[-1]
+
 		# return most probable move
-		return arrs.find_n_max_2d(solver.net.blobs['conv3'].data[0][0], 5)
+		return arrs.find_n_max_2d(solver.net.blobs[last_conv].data[0].reshape(19, 19), 5)
 
 	else:
 		raise Exception("Wrong mode! (use train/test)")
@@ -135,6 +139,9 @@ def train_iter(solver, boards, moves, size, mode):
 # train_guess_n - move in top 5 most probable on training dataset
 # l - loss layer output
 def plot(it, test_guess, test_guess_n, train_guess, train_guess_n, l, show_plot, save_plot):
+	if not show_plot and not save_plot:
+		return
+
 	# number of points on plot
 	points = 50
 
@@ -162,7 +169,6 @@ def plot(it, test_guess, test_guess_n, train_guess, train_guess_n, l, show_plot,
 					np.mean(test_guess_n.reshape(-1, samples), axis=1)) \
 		if len(it) > points else (it, test_guess, test_guess_n)
 
-	# plt.subplot(1, 2, 1)
 	plt.title('Accuracy of test net')
 
 	plt.plot(x, y1, linestyle='-', marker='o', color='red')
@@ -172,19 +178,6 @@ def plot(it, test_guess, test_guess_n, train_guess, train_guess_n, l, show_plot,
 	plt.legend(handles=[red, blue], loc=2, borderaxespad=0.)
 	plt.ylim((0, 1))
 	plt.xlim((x[0], x[-1]) if len(x) else (0, 1))
-
-	# (y1,y2) = (np.mean(train_guess.reshape(-1,length/points), axis=1),
-	# np.mean(test_guess_n.reshape(-1,length/points), axis=1) if len(it)>points else (train_guess,train_guess_n)
-
-	# plt.subplot(1, 2, 2)
-	# plt.title('Accuracy of train net')
-	# plt.plot(x, y1, linestyle='-', marker='o', color='red' )
-	# plt.plot(x, y2, linestyle='-', marker='o', color='blue' )
-	# red = mpatches.Patch(color='red', label='move guessed')
-	# blue = mpatches.Patch(color='blue', label='move in top 5')
-	# plt.legend(handles=[red,blue], loc=2, borderaxespad=0.)
-	# plt.ylim((0,1))
-	# plt.xlim((x[0],x[-1]) if len(x) else (0,1))
 
 	# first save, then show (or save figure - fig = plt.gcf();fig.savefig('awd'))
 	# new figure is created when show() is called
@@ -202,8 +195,6 @@ def plot(it, test_guess, test_guess_n, train_guess, train_guess_n, l, show_plot,
 	red = mpatches.Patch(color='red', label='loss')
 	plt.legend(handles=[red], loc=2, borderaxespad=0.)
 	plt.ylim((0, max(l) + max(l) * 0.1 if len(l) else 1))
-	# plt.xlim((it[0],it[-1] if len(it) else 0,1))
-	# plt.xlim((it[0] if len(it) else 0,it[-1] if len(it) else 1))
 	plt.xlim((it[0], it[-1]) if len(it) else (0, 1))
 
 	if save_plot:
@@ -221,6 +212,7 @@ def parse_args():
 	parser.add_argument('-s', '--solver', required=True)
 	parser.add_argument('-i', '--iter_limit', type=int, default=100000)
 	parser.add_argument('-d', '--dataset', default="./boards2.npz")
+	parser.add_argument('-r', '--draw_plots', action='store_true')
 	parser.add_argument('-p', '--show_plots', action='store_true')
 	parser.add_argument('-v', '--save_snapshot', action='store_true')
 	parser.add_argument('-l', '--load_snapshot', nargs=1)
@@ -260,8 +252,6 @@ if __name__ == "__main__":
 			# rest - test data
 			solver = train_iter(solver, boards[:len(boards) * 2 / 3], moves[:len(boards) * 2 / 3],
 																							batch_size, "train")
-			# train_guess,train_n_guess,loss = train_iter(solver,boards[:len(boards)*2/3],
-			# moves[:len(boards)*2/3],batch_size,"test")
 			guess, n_guess, cur_loss = train_iter(solver, boards[len(boards) * 2 / 3:],
 																	moves[len(boards) * 2 / 3:], batch_size, "test")
 
@@ -278,7 +268,6 @@ if __name__ == "__main__":
 	if args.save_snapshot:
 		solver.snapshot()
 
-		np.savez("stats" + str(int(it[-1])), iter=it, test=test_guess, test_n=test_guess_n,  # train_n=train_guess, train=train_guess_n,
-											loss=loss)
+		np.savez("stats" + str(int(it[-1])), iter=it, test=test_guess, test_n=test_guess_n, loss=loss)
 
-	plot(it, test_guess, test_guess_n, train_guess, train_guess_n, loss, args.show_plots, args.save_snapshot)
+	plot(it, test_guess, test_guess_n, train_guess, train_guess_n, loss, args.show_plots, args.draw_plots)
