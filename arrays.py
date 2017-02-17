@@ -66,7 +66,7 @@ def find_n_max_2d(array, n):
 							break
 
 	# no point in returning value, array is sorted already
-	return [r[0:2] for r in sorted(ret, key=lambda t:t[2])]
+	return [r[0:2] for r in sorted(ret, key=lambda t:t[2])][::-1]
 
 if __name__ == "__main__":
 	a = [[1, 2, 3], [3, 4, 5]]
