@@ -6,8 +6,8 @@
 #PBS -q gpu
 #PBS -l scratch=300mb
 #PBS -l walltime=2h
-#PBS -l nodes=1:ppn=16:gpu=2
-#PBS -l mem=4gb
+#PBS -l nodes=1:ppn=2:gpu=1
+#PBS -l mem=2gb
 
 ## launch as: qsub task.sh
 
@@ -19,10 +19,11 @@ module add caffe2016-gpu-cudnn
 home="/storage/brno2/home/hacky"
 
 trap 'clean_scratch' TERM EXIT
-trap 'cp -r $SCRATCHDIR/log.out $SCRATCHDIR/*npz $SCRATCHDIR/trained $home && clean_scratch' TERM
+trap 'cp -r $SCRATCHDIR/*solverstate $SCRATCHDIR/*prototxt $SCRATCHDIR/*npz \
+        $SCRATCHDIR/trained $home && clean_scratch' TERM
 
 #copy data
-cp -r $home/arrays.py $home/boards2.npz $home/train2.py $home/trainQ.sh $home/queue $SCRATCHDIR
+cp -r $home/*.py $home/boards2.npz $home/trainQ.sh $home/queue $SCRATCHDIR
 mkdir $SCRATCHDIR/trained
 
 #launch task
