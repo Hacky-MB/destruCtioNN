@@ -39,10 +39,10 @@ do
 	cp ${top_dir}/queue/${net_dir}/${net} ${top_dir}
 
     #switch solver mode to GPU (just in case)
-    cat net_solver.prototxt | sed 's/CPU/GPU/g' > net_solver.prototxt
+    cat ${top_dir}/${solver} | sed 's/CPU/GPU/g' > ${top_dir}/${solver}
 
 	#train net
-	${top_dir}/train2.py -i=20000 -s=${top_dir}/queue/${net_dir}/${solver} -v
+	${top_dir}/train2.py -i=20000 -s=${top_dir}/${solver} -v
 
 	if [ $? -ne "0" ]; then
 		echo "Error occured during training!" && exit
