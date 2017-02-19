@@ -10,6 +10,8 @@ concat_stats.py	- script which concatenates more .npz files and recreates plots 
 
 draw_net.py	- module for drawing nets (taken from [caffe python interface](http://caffe.berkeleyvision.org/tutorial/interfaces.html))
 
+getBoards.py - script for parsing stored games and saving them in .npz format
+
 play2.py - script for communication with game client and neural networks	
 
 task.sh	- script for training using [Metacentrum](https://metavo.metacentrum.cz/en/)
