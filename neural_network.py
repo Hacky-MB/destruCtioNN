@@ -8,19 +8,11 @@ import arrays
 
 
 class NeuralNetwork:
-	class TrainedNet(Enum):
-		Policy = 1
-		PolicyWithOutcomes = 2
-		Value = 3
-
-	class ComputingMode(Enum):
-		CPU = 1
-		GPU = 2
-
-	class Usage(Enum):
-		Train = 1
-		Test = 2
-		Play = 3
+	# can't import enum class on metacentrum (I mean, wtf...)
+	# so I had to use this as a workaround
+	TrainedNet = {'Policy': 1, "PolicyWithOutcomes": 2, "Value": 3}
+	ComputingMode = {'CPU': 1, 'GPU': 2}
+	Usage = {'Train': 1, 'Test': 2, 'Play': 3}
 
 	def __init__(self, args, usage):
 		self.set_computing_mode(args.mode)
@@ -45,10 +37,10 @@ class NeuralNetwork:
 
 		self.boards = np.array([])
 		self.moves = np.array([])
-		if self.net != NeuralNetwork.TrainedNet.Policy:
+		if self.net != NeuralNetwork.TrainedNet['Policy']:
 			self.outcomes = []
 
-		if usage != NeuralNetwork.Usage.Play:
+		if usage != NeuralNetwork.Usage['Play']:
 			# this data is not relevant when using NN
 			# only with Gomoku client
 
@@ -74,10 +66,10 @@ class NeuralNetwork:
 		self.outcomes = outcomes
 
 	def set_computing_mode(self, mode):
-		if mode == NeuralNetwork.ComputingMode.CPU:
+		if mode == NeuralNetwork.ComputingMode['CPU']:
 			caffe.set_mode_cpu()
 
-		elif mode == NeuralNetwork.ComputingMode.GPU:
+		elif mode == NeuralNetwork.ComputingMode['GPU']:
 			import os
 			from subprocess import Popen, PIPE
 
@@ -102,7 +94,7 @@ class NeuralNetwork:
 			raise Exception("Wrong mode! Choose \"cpu\" or \"gpu\".")
 
 	def get_iter_cnt(self):
-		if self.net == NeuralNetwork.TrainedNet.PolicyWithOutcomes:
+		if self.net == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 			return self.iter_cnt
 		else:
 			return self.solver.iter
@@ -110,14 +102,14 @@ class NeuralNetwork:
 	def train(self):
 		try:
 			while self.get_iter_cnt() < self.iter_limit:
-				self.solver, train, train_n = self.train_iter(NeuralNetwork.Usage.Train)
-				test, test_n, loss = self.train_iter(NeuralNetwork.Usage.Test)
+				self.solver, train, train_n = self.train_iter(NeuralNetwork.Usage['Train'])
+				test, test_n, loss = self.train_iter(NeuralNetwork.Usage['Test'])
 
 				# this net doesn't use solver from framework
 				# so solver.iter doesn't get update and can't be assigned
 				# so I count iterations manually
 				try:
-					if self.net == NeuralNetwork.TrainedNet.PolicyWithOutcomes:
+					if self.net == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 						self.iter_cnt += 12
 
 						self.plot.add_iter(self.iter_cnt, test, test_n, train, train_n, loss)
@@ -148,7 +140,7 @@ class NeuralNetwork:
 
 		# only policy network with outcomes requires special minibatch
 		# (all outcomes must be win / lose (True/False))
-		if self.net != NeuralNetwork.TrainedNet.PolicyWithOutcomes:
+		if self.net != NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 			return indices
 
 		win = True
@@ -188,7 +180,7 @@ class NeuralNetwork:
 		self.boards = self.dataset['boards'][indices, :, :]
 		self.moves = self.dataset['moves'][indices, :]
 
-		if self.net != NeuralNetwork.TrainedNet.Policy:
+		if self.net != NeuralNetwork.TrainedNet['Policy']:
 			self.outcomes = self.dataset['boards']['outcomes'][indices]
 
 
@@ -210,13 +202,13 @@ class NeuralNetwork:
 		self.boards = boards_out.transpose([0, 3, 1, 2])
 
 		# train on current board and move
-		if usage == NeuralNetwork.Usage.Train:
+		if usage == NeuralNetwork.Usage['Train']:
 			return self.transform_train()
 			# return train(solver, boards_out, moves, mode)
-		elif usage == NeuralNetwork.Usage.Test:
+		elif usage == NeuralNetwork.Usage['Test']:
 			# guess,n_guess,loss
 			return self.step(usage)
-		elif usage == NeuralNetwork.Usage.Play:
+		elif usage == NeuralNetwork.Usage['Play']:
 			# array of most probable moves
 			return self.step(usage)
 
@@ -245,7 +237,7 @@ class NeuralNetwork:
 						arrays.rotate_clockwise(self.moves[i], board_size)
 
 				solver, train_guess, train_guess_n = \
-					self.step(NeuralNetwork.Usage.Train)
+					self.step(NeuralNetwork.Usage['Train'])
 			# flip board back
 			for i in range(len(self.moves)):
 				self.boards[i, 0], self.boards[i, 1], self.moves[i] = \
@@ -265,14 +257,14 @@ class NeuralNetwork:
 		self.solver.net.blobs['data'].data[:, :, :, :] = self.boards[:, :, :, :]
 
 		# load expected move
-		if usage != NeuralNetwork.Usage.Play:
+		if usage != NeuralNetwork.Usage['Play']:
 			for i in range(len(self.moves)):
 				self.solver.net.blobs['labels'].data[i] = (self.moves[i][0]) * 19 + (self.moves[i][1])
 
 		# move is the most probable
-		if usage == NeuralNetwork.Usage.Train:
+		if usage == NeuralNetwork.Usage['Train']:
 
-			if self.net == NeuralNetwork.TrainedNet.PolicyWithOutcomes:
+			if self.net == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 				self.solver.net.forward()
 
 				# if not outcomes[0]:
@@ -314,12 +306,12 @@ class NeuralNetwork:
 
 			return self.solver, self.solver.net.blobs['accuracy'].data, self.solver.net.blobs['accuracy5'].data
 
-		elif usage == NeuralNetwork.Usage.Test:
+		elif usage == NeuralNetwork.Usage['Test']:
 			self.solver.net.forward()
 			return self.solver.net.blobs['accuracy'].data, \
 				self.solver.net.blobs['accuracy5'].data, self.solver.net.blobs['loss'].data
 
-		elif usage == NeuralNetwork.Usage.Play:
+		elif usage == NeuralNetwork.Usage['Play']:
 			self.solver.net.forward()
 
 			# find last convolution layer name

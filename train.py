@@ -27,18 +27,18 @@ def parse_args():
 	args.batch_size = int(args.batch_size)
 
 	if args.mode == 'cpu':
-		args.mode = NeuralNetwork.ComputingMode.CPU
+		args.mode = NeuralNetwork.ComputingMode['CPU']
 	elif args.mode == 'gpu':
-		args.mode = NeuralNetwork.ComputingMode.GPU
+		args.mode = NeuralNetwork.ComputingMode['GPU']
 	else:
 		raise Exception("Wrong computing mode! Choose \"gpu\" or \"cpu\"")
 
 	if args.net == "P":
-		args.net = NeuralNetwork.TrainedNet.Policy
+		args.net = NeuralNetwork.TrainedNet['Policy']
 	elif args.net == "PWO":
-		args.net = NeuralNetwork.TrainedNet.PolicyWithOutcomes
+		args.net = NeuralNetwork.TrainedNet['PolicyWithOutcomes']
 	elif args.net == "V":
-		args.net = NeuralNetwork.TrainedNet.Value
+		args.net = NeuralNetwork.TrainedNet['Value']
 	else:
 		raise Exception("Wrong trained net argument! Choose \"P\", \"PWO\" or \"V\".")
 
@@ -47,5 +47,5 @@ def parse_args():
 if __name__ == "__main__":
 	args = parse_args()
 
-	nn = NeuralNetwork(args, NeuralNetwork.TrainedNet.PolicyWithOutcomes)
+	nn = NeuralNetwork(args, NeuralNetwork.TrainedNet['PolicyWithOutcomes'])
 	nn.train()
