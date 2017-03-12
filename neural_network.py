@@ -2,7 +2,6 @@
 
 import caffe
 import numpy as np
-from enum import Enum
 import itertools
 import arrays
 
