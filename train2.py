@@ -5,6 +5,8 @@ import arrays as arrs
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import caffe
+import sys
+import layer as la
 
 """
 This module is used for interacting with neural network.
@@ -19,6 +21,8 @@ def train(solver, boards, moves, mode):
 	# @param mode == "test" -> @return acc(guessed move),acc(move in top 5 most probable),loss
 	# @param mode == "play" -> @return list(top 5 probable moves)
 
+	border = (solver.net.blobs['data'].data.shape[-1] - 19) / 2
+
 	# load boards
 	solver.net.blobs['data'].data[:, :, :, :] = boards[:, :, :, :]
 
@@ -29,7 +33,35 @@ def train(solver, boards, moves, mode):
 
 	# move is the most probable
 	if mode == "train":
-		solver.step(1)
+
+		last_conv = last_conv = sorted([l for l in solver.net.blobs.keys() if l[0:4] == "conv"])[-1]
+		# la.show_l(solver, last_conv, "b", 256, 1)
+
+		solver.net.forward()
+		print "forward"
+		# la.show_l(solver, last_conv, "b", 256, 1)
+
+		solver.net.backward()
+
+		for k in range(len(solver.net.layers)):
+			if solver.net.layers[k].type == "Input":
+				continue
+
+			if len(solver.net.layers[k].blobs) == 0:
+				continue
+
+			print solver.net.layers[k].blobs[0].data.shape
+
+			solver.net.layers[k].blobs[0].diff[...] *= 0.05  # weights
+			solver.net.layers[k].blobs[1].diff[...] *= 0.05  # biases
+
+			solver.net.layers[k].blobs[0].data[...] -= solver.net.layers[k].blobs[0].diff
+			solver.net.layers[k].blobs[1].data[...] -= solver.net.layers[k].blobs[1].diff
+
+		la.show_l(solver, last_conv, "b", 256, 1)
+
+		print "ended iteration\n"
+		# solver.step(1)
 		return solver
 
 	elif mode == "test":
@@ -121,6 +153,7 @@ def train_iter(solver, boards, moves, size, mode):
 	if mode == "train":
 		# solver
 		return transform_train(solver, boards_out, moves)
+		# return train(solver, boards_out, moves, mode)
 	elif mode == "test":
 		# guess,n_guess,loss
 		return train(solver, boards_out, moves, mode)
@@ -243,6 +276,12 @@ if __name__ == "__main__":
 
 	batch_size = 32
 
+	# get size of input array
+	size = solver.net.blobs['data'].data.shape[-1]
+
+	solver.net.blobs['data'].reshape(batch_size, 2, size, size)
+	solver.net.blobs['labels'].reshape(batch_size, 1, 1, 1)
+
 	try:
 		while (not len(it)) or it[-1] < args.iter_limit:
 			# solver = train_iter(solver,boards,moves,batch_size,"train")
@@ -254,14 +293,10 @@ if __name__ == "__main__":
 																							batch_size, "train")
 			guess, n_guess, cur_loss = train_iter(solver, boards[len(boards) * 2 / 3:],
 																	moves[len(boards) * 2 / 3:], batch_size, "test")
-
 			it = np.append(it, solver.iter)
 			test_guess = np.append(test_guess, float(guess))
 			test_guess_n = np.append(test_guess_n, float(n_guess))
-			# train_guess = np.append(train_guess, float(train_guess))
-			# train_guess_n = np.append(train_guess_n, float(train_n_guess))
 			loss = np.append(loss, float(cur_loss))
-
 	except:
 		pass
 
