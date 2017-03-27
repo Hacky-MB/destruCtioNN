@@ -127,7 +127,8 @@ static void start()
 	start_time = GetTickCount();
 	stop();
 	if (!width) {
-		width = height = 20;
+		width = height = 19;
+		brain_init();
 	}
 }
 
@@ -160,7 +161,6 @@ static void do_command()
 		else {
 			height = width;
 			start();
-			brain_init();
 		}
 	}
 	else if ((param = get_cmd_param("rectstart", cmd)) != 0) {
@@ -170,7 +170,6 @@ static void do_command()
 		}
 		else {
 			start();
-			brain_init();
 		}
 	}
 	else if ((param = get_cmd_param("restart", cmd)) != 0) {
@@ -197,6 +196,7 @@ static void do_command()
 		}
 	}
 	else if ((param = get_cmd_param("begin", cmd)) != 0) {
+		pipeOut("MESSAGE begin");
 		start();
 		turn();
 	}
@@ -214,6 +214,8 @@ static void do_command()
 	}
 	else if ((param = get_cmd_param("board", cmd)) != 0) {
 		start();
+		start_board_transfer();
+
 		for (;;) { /* fill the whole board */
 			get_line();
 			parse_3int_chk(cmd, &x, &y, &who);
@@ -225,6 +227,8 @@ static void do_command()
 				break;
 			}
 		}
+
+		end_board_transfer();
 		turn();
 	}
 	else if ((param = get_cmd_param("takeback", cmd)) != 0) {

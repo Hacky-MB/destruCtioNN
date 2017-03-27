@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+
+import sys
+
+
+def printProgress(iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '#'):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    if filledLength >= total:
+	    filledLength = length
+
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print '%s |%s| %s%% %s\r'%(prefix, bar, percent, suffix),
+    # Print New Line on Complete
+    sys.stdout.flush()
+
+# 
+# Sample Usage
+# 
+
+if __name__ == "__main__":
+    from time import sleep
+
+    # make a list
+    items = list(range(0, 57))
+    i = 0
+    l = len(items)
+
+    # Initial call to print 0% progress
+    printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+    for item in items:
+        # Do stuff...
+        sleep(0.1)
+        # Update Progress Bar
+        i += 1
+        printProgress(i, l, prefix = 'Progress:', suffix = 'Complete', length = 50)
+

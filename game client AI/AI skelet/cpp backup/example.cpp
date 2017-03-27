@@ -31,6 +31,8 @@ static unsigned seed;
 SOCKET ConnectSocket;
 WSADATA wsaData;
 
+
+
 bool send_buffer(char* buffer, unsigned int size)
 {
 	int iResult = send(ConnectSocket, (char*)buffer, size, 0);
@@ -44,14 +46,22 @@ bool send_buffer(char* buffer, unsigned int size)
 	return true;
 }
 
-void send_preloaded_move(int x, int y, int player)
+void start_board_transfer()
 {
-	unsigned char buf[9] = { 255,255,255,x,y,1,255,255,255 };
+	unsigned char buf[6] = { 255,255,'b','o',255,255 };
 
-	if (send_buffer((char*)buf, 9))
-		pipeOut("MESSAGE coords sent x-%d y-%d", x, y);
+	if (send_buffer((char*)buf, 6))
+		pipeOut("MESSAGE board transfer initiated");
 }
 
+void end_board_transfer()
+{
+	unsigned char buf[6] = { 255,255,'d','o',255,255 };
+
+	if (send_buffer((char*)buf, 6))
+		pipeOut("MESSAGE board transfer initiated");
+}
+	
 /*
  * Initialize socket
  */
@@ -61,8 +71,6 @@ int socket_init(std::string IP, std::string port)
 	//create socket
 	int iResult;
 
-	//pipeOut("MESSAGE call WSAStartup()");
-
 	// Initialize Winsock
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0)
@@ -70,8 +78,6 @@ int socket_init(std::string IP, std::string port)
 		pipeOut("ERROR couldn't create socket, error - %d", iResult);
 		return EXIT_FAILURE;
 	}
-	//pipeOut("MESSAGE done WSAStartup()");
-
 	struct addrinfo *result = NULL,
 		*ptr = NULL,
 		hints;
@@ -81,8 +87,6 @@ int socket_init(std::string IP, std::string port)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	//pipeOut("MESSAGE call getaddrinfo()");
-
 	// translate host name to address
 	iResult = getaddrinfo(IP.c_str(), port.c_str(), &hints, &result);
 	if (iResult != 0)
@@ -91,9 +95,6 @@ int socket_init(std::string IP, std::string port)
 		WSACleanup();
 		return EXIT_FAILURE;
 	}
-
-	//pipeOut("MESSAGE done getaddrinfo()");
-	//pipeOut("MESSAGE call socket() and connect()");
 
 	// Attempt to connect to an address until one succeeds
 	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
@@ -117,8 +118,6 @@ int socket_init(std::string IP, std::string port)
 		break;
 	}
 
-	//pipeOut("MESSAGE done connect() %d", ConnectSocket == INVALID_SOCKET);
-
 	// free output from getaddrinfo
 	freeaddrinfo(result);
 
@@ -128,7 +127,6 @@ int socket_init(std::string IP, std::string port)
 		return EXIT_FAILURE;
 	}
 
-	//pipeOut("MESSAGE Socket created");
 	return EXIT_SUCCESS;
 }
 
@@ -143,10 +141,6 @@ void socket_close()
 	WSACleanup();
 }
 
-/*
-* Initialize brain
-*/
-
 bool read_word(FILE* file, char* buffer, int size)
 {
 	int c, index = 0;
@@ -157,27 +151,40 @@ bool read_word(FILE* file, char* buffer, int size)
 	return c == (int)EOF;
 }
 
-void load_addr(std::string& ip, std::string& port)
+/*
+* Initialize brain
+*/
+
+void brain_init() 
 {
+	pipeOut("MESSAGE brain init");
+
+	if (width != 19 || height !=19)
+	{
+		pipeOut("ERROR size of the board");
+		return;
+	}
+	seed=start_time;
+
 	char buffer[30] = { 0 };
 	pipeOut("MESSAGE brain init");
-	char* filename = ".\pbrain-destruCtioNN.cfg";
+	char* filename = "pbrain-destruCtioNN.cfg";
 	FILE* file;
+	
 	pipeOut("MESSAGE calling fopen");
 
 	if (fopen_s(&file, filename, "r"))
 	{
 		int errn = errno;
 		char* err = strerror(errn);
-		pipeOut("MESSAGE config file could not be opened: %s", err);
-		pipeOut("ERROR config file could not be opened: %s", err);
+		pipeOut("ERROR config file could not be opened: %s",err);
 		return;
 	}
 
 	pipeOut("MESSAGE file opened");
-	ip = "", port = "";
+	std::string IP = "", port = "";
 
-	for (int i = 0; i < 2; i++)
+	for(int i = 0; i < 2; i++)
 	{
 		bool end = read_word(file, buffer, 30);
 		if (end)
@@ -185,45 +192,25 @@ void load_addr(std::string& ip, std::string& port)
 
 		switch (i)
 		{
-		case 0:
-			ip = std::string(buffer);
-			break;
-		case 1:
-			port = std::string(buffer);
-			break;
+			case 0:
+				IP = std::string(buffer);
+				break;
+			case 1:
+				port = std::string(buffer);
+				break;
 		}
 
 		for (int j = 0; j < 30; j++)
 			buffer[j] = 0;
 	}
 	fclose(file);
-}
 
-void brain_init() 
-{
-	pipeOut("MESSAGE brain init");
-	if (width != 19 || height != 19)
-	{
-		pipeOut("ERROR size of the board");
-		return;
-	}
-	seed = start_time;
+	pipeOut("MESSAGE connecting to %s %s", IP.c_str(), port.c_str());
 
-	std::string IP = SERVER_IP, port = DEFAULT_PORT;
-
-	//load_addr(IP, port);
-
-	if (!socket_init(SERVER_IP, DEFAULT_PORT))
+	if (!socket_init(IP, port))
 		pipeOut("OK");
 
-	char buffer[] = "in";
-	int iResult = send(ConnectSocket, buffer, (int)strlen(buffer), 0);
-	if (iResult == SOCKET_ERROR) 
-	{
-		pipeOut("ERROR send failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-	}
+	send_buffer("in", 2);
 }
 
 void brain_restart()
@@ -235,16 +222,8 @@ void brain_restart()
 		for(y=0; y<height; y++)
 			board[y * MAX_BOARD + x]=0;
 
-	char buffer[] = "in";
-	int iResult = send(ConnectSocket, buffer, (int)strlen(buffer), 0);
-	if (iResult == SOCKET_ERROR)
-	{
-		pipeOut("ERROR send failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-	}
-
-	pipeOut("OK");	
+	if (send_buffer("in", 2))
+		pipeOut("OK");
 }
 
 int isFree(int x, int y)
@@ -252,18 +231,25 @@ int isFree(int x, int y)
 	return x>=0 && y>=0 && x<width && y<height && board[y * MAX_BOARD + x]==0;
 }
 
+void send_preloaded_move(int x, int y, int player)
+{
+	unsigned char buf[9] = { 255,255,255,x,y,1,255,255,255 };
+
+	if (send_buffer((char*)buf, 9))
+		pipeOut("MESSAGE coords sent x-%d y-%d", x, y);
+}
+
 void brain_my(int x,int y, bool sendToClient)
 {
 	pipeOut("MESSAGE brain my");
-	//if(isFree(x,y))
+	if(isFree(x,y))
 		board[y * MAX_BOARD + x]=1;
 
 		if (sendToClient)
 			send_preloaded_move(x, y, 0);
+	else
+		pipeOut("ERROR my move [%d,%d]",x,y);
 
-	//else
-		//pipeOut("MESSAGE board %d", board[y * MAX_BOARD + x]);
-		//pipeOut("ERROR my move [%d,%d]",x,y);
 }
 
 void brain_opponents(int x,int y, bool loadingBoard)
@@ -286,18 +272,17 @@ void brain_opponents(int x,int y, bool loadingBoard)
 	}
 	else
 		pipeOut("ERROR opponents's move [%d,%d]",x,y);
+
 }
 
-void brain_block(int x,int y)
+void brain_block(int x, int y)
 {
-	if(isFree(x,y))
-		board[y * MAX_BOARD + x]=3;
-	else
-		pipeOut("ERROR winning move [%d,%d]",x,y);
+
 }
 
 int brain_takeback(int x,int y)
 {
+	return 1;
 	if(x>=0 && y>=0 && x<width && y<height && board[y * MAX_BOARD + x]!=0)
 	{
 		board[y * MAX_BOARD + x]=0;
@@ -317,12 +302,12 @@ void brain_turn()
 
 	pipeOut("MESSAGE brain turn");
 
+	// encapsulate data
 	unsigned char buf[6] = { 255,255,'m','o',255,255 };
-	if (!send_buffer((char*)buf, 6))
-		return;
 
+	if (send_buffer((char*)buf, 6))
+		pipeOut("MESSAGE coords sent %d %d", coords[::x], coords[::y]);
 
-	pipeOut("MESSAGE Waiting for response");
 	// recieve data (x,y)
 	int iResult = recv(ConnectSocket, (char*)coords, 2 * sizeof(char), 0);
 	if (iResult > 0)
@@ -332,30 +317,8 @@ void brain_turn()
 	else
 		pipeOut("ERROR recv failed: %d\n", WSAGetLastError());
 
-	pipeOut("MESSAGE recieved %d %d\n", coords[::x], coords[::y]);
-		
-	// disconnect sequence initiated
-/*	if (coords[::x] == 'k' && coords[::y] == 'o')
-	{
-		pipeOut("MESSAGE Recieved ko\n");
-		unsigned char buf[6] = { 255,255,255,255,255,255 };
+	pipeOut("MESSAGE recieved %d %d\n", coords[0], coords[1]);
 
-		int iResult = send(ConnectSocket, (char*)buf, sizeof(buf), 0);
-		pipeOut("MESSAGE answer sent\n");
-		if (iResult == SOCKET_ERROR)
-		{
-			pipeOut("ERROR Send failed: %d", WSAGetLastError());
-			closesocket(ConnectSocket);
-			WSACleanup();
-			return;
-		}
-
-		socket_close();
-		pipeOut("ERROR server closed connection", x, y);
-		return;
-	}*/
-
-	pipeOut("MESSAGE x-%d y-%d\n",coords[0],coords[1]);
 	do_mymove(coords[::x], coords[::y]);
 }
 

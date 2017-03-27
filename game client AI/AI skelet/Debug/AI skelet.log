@@ -1,3 +1,19 @@
-﻿  example.cpp
-  AI skelet.vcxproj -> E:\Dropbox\BP\AI skelet\Debug\pbrain-destruCtioNN.exe
-  AI skelet.vcxproj -> E:\Dropbox\BP\AI skelet\Debug\pbrain-destruCtioNN.pdb (Full PDB)
+﻿  stdafx.cpp
+  AI skelet.cpp
+e:\dropbox\bp\ai\ai skelet\ai skelet.cpp(61): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
+e:\dropbox\bp\ai\ai skelet\ai skelet.cpp(71): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
+e:\dropbox\bp\ai\ai skelet\ai skelet.cpp(149): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\string.h(346): note: see declaration of 'strncpy'
+e:\dropbox\bp\ai\ai skelet\ai skelet.cpp(156): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
+e:\dropbox\bp\ai\ai skelet\ai skelet.cpp(167): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+  c:\program files (x86)\windows kits\10\include\10.0.10240.0\ucrt\stdio.h(2254): note: see declaration of 'sscanf'
+  Generating Code...
+  example.cpp
+e:\dropbox\bp\ai\ai skelet\example.cpp(49): warning C4838: conversion from 'int' to 'unsigned char' requires a narrowing conversion
+e:\dropbox\bp\ai\ai skelet\example.cpp(164): warning C4129: 'p': unrecognized character escape sequence
+e:\dropbox\bp\ai\ai skelet\example.cpp(281): warning C4838: conversion from 'int' to 'unsigned char' requires a narrowing conversion
+  AI skelet.vcxproj -> E:\Dropbox\BP\AI\Debug\pbrain-destruCtioNN.exe
+  AI skelet.vcxproj -> E:\Dropbox\BP\AI\Debug\pbrain-destruCtioNN.pdb (Full PDB)

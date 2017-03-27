@@ -7,11 +7,11 @@ def parse_args():
 	import argparse
 	import sys
 	parser = argparse.ArgumentParser()
-	parser.add_argument('-b', '--batch_size', required=True)
+	parser.add_argument('-b', '--batch_size', required=True, type=int)
 	parser.add_argument('-d', '--dataset', default="./boards2.npz")
 	parser.add_argument('-i', '--iter_limit', type=int, default=100000)
 	parser.add_argument('-l', '--load_snapshot', nargs=1)
-	parser.add_argument('-m', '--mode', required=True, choices=['cpu', 'gpu'], help='CPU/GPU')
+	parser.add_argument('-m', '--mode', required=True, choices=['CPU', 'GPU'], help='CPU/GPU')
 	parser.add_argument('-n', '--net', required=True,
 		choices=['P', 'PWO', 'V'], help='Policy net, Policy without outcomes or Value network')
 	parser.add_argument('-p', '--show_plots', action='store_true')
@@ -24,14 +24,13 @@ def parse_args():
 		sys.exit()
 
 	args = parser.parse_args()
-	args.batch_size = int(args.batch_size)
 
-	if args.mode == 'cpu':
+	if args.mode == 'CPU':
 		args.mode = NeuralNetwork.ComputingMode['CPU']
-	elif args.mode == 'gpu':
+	elif args.mode == 'GPU':
 		args.mode = NeuralNetwork.ComputingMode['GPU']
 	else:
-		raise Exception("Wrong computing mode! Choose \"gpu\" or \"cpu\"")
+		raise Exception("Wrong computing mode! Choose \"GPU\" or \"CPU\"")
 
 	if args.net == "P":
 		args.net = NeuralNetwork.TrainedNet['Policy']
@@ -48,4 +47,4 @@ if __name__ == "__main__":
 	args = parse_args()
 
 	nn = NeuralNetwork(args, NeuralNetwork.TrainedNet['PolicyWithOutcomes'])
-	nn.train()
+	nn.train_net()

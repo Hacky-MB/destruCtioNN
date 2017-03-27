@@ -29,7 +29,7 @@ void brain_restart(); /* delete old board, create new board, call pipeOut("OK");
 void brain_turn(); /* choose your move and call do_mymove(x,y);
                       0<=x<width, 0<=y<height */
 void brain_my(int x,int y, bool sendToClient); /* put your move to the board */
-void brain_opponents(int x,int y, bool makingPreloadedBoard); /* put opponent's move to the board */
+void brain_opponents(int x,int y, bool sendToClient); /* put opponent's move to the board */
 void brain_block(int x,int y); /* square [x,y] belongs to a winning line (when info_continuous is 1) */
 int brain_takeback(int x,int y); /* clear one square; return value: 0:success, 1:not supported, 2:error */
 void brain_end();  /* delete temporary files, free resources */
@@ -48,3 +48,5 @@ void brain_eval(int x,int y); /* display evaluation of square [x,y] */
 extern int pipeOut(const char *fmt,...);
 extern void do_mymove(int x,int y);
 extern void suggest(int x,int y);
+extern void start_board_transfer();
+extern void end_board_transfer();
