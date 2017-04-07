@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-
+import sys
 
 class NNPlot:
 
@@ -26,6 +26,14 @@ class NNPlot:
 		self.train_guess = np.append(self.train_guess, train)
 		self.train_guess_n = np.append(self.train_guess_n, train_n)
 		self.loss = np.append(self.loss, curr_loss)
+
+	def load_data(self, it, test, test_n, train, train_n, loss):
+		self.iterations = it
+		self.test_guess = test
+		self.test_guess_n = test_n
+		self.train_guess = train
+		self.train_guess_n = train_n
+		self.loss = loss
 
 	def draw(self):
 		import matplotlib.pyplot as plt
@@ -53,9 +61,9 @@ class NNPlot:
 
 		# TODO: add train values
 		(x, y1, y2) = (np.array(self.iterations[::length / self.points]),
-						np.mean(self.test_guess.reshape(-1, samples), axis=1),
-						np.mean(self.test_guess_n.reshape(-1, samples), axis=1)) \
-			if length > self.points else (self.iterations, self.test_guess, self.test_guess_n)
+						np.mean(self.train_guess.reshape(-1, samples), axis=1),
+						np.mean(self.train_guess_n.reshape(-1, samples), axis=1)) \
+			if length > self.points else (self.iterations, self.train_guess, self.train_guess_n)
 
 		plt.title('Accuracy of test net')
 
@@ -65,7 +73,7 @@ class NNPlot:
 		blue = mpatches.Patch(color='blue', label='move in top 5')
 		plt.legend(handles=[red, blue], loc=2, borderaxespad=0.)
 		plt.ylim((0, 1))
-		plt.xlim((x[0], x[-1]) if len(x) else (0, 1))
+		plt.xlim((0, x[-1]) if len(x) else (0, 1))
 
 		# first save, then show (or save figure - fig = plt.gcf();fig.savefig('awd'))
 		# new figure is created when show() is called
@@ -83,7 +91,7 @@ class NNPlot:
 		red = mpatches.Patch(color='red', label='loss')
 		plt.legend(handles=[red], loc=2, borderaxespad=0.)
 		plt.ylim((0, max(self.loss) + max(self.loss) * 0.1 if length else 1))
-		plt.xlim((self.iterations[0], self.iterations[-1]) if length else (0, 1))
+		plt.xlim((0, self.iterations[-1]) if length else (0, 1))
 
 		if self.save_plot:
 			plt.savefig('loss' + str(int(self.iterations[-1]) if length else "") + '.svg')
@@ -93,3 +101,28 @@ class NNPlot:
 		else:
 			plt.clf()
 
+
+def parse_args():
+	import argparse
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-i', '--input', required=True)
+	parser.add_argument('-p', '--show_plots', action='store_true')
+	parser.add_argument('-r', '--save_plots', action='store_true')
+
+	if len(sys.argv) == 1:
+		parser.print_help()
+		sys.exit()
+
+	return parser.parse_args()
+
+
+def main():
+	args = parse_args()
+
+	f = np.load(args.input)
+	plot = NNPlot(args.show_plots, args.save_plots)
+	plot.load_data(f['iter'], [], [], f['train'], f['train_n'], f['loss'])
+	plot.draw()
+
+if __name__ == "__main__":
+	main()

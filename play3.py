@@ -20,11 +20,11 @@ AI run by game client.
 
 
 class NeuralNetworkArgs:
-	def __init__(self, solver, snapshot, net_name):
+	def __init__(self, solver, snapshot, net_type):
 		self.solver = solver
 		self.load_snapshot = snapshot
 		self.batch_size = 1
-		self.net = net_name
+		self.net = net_type
 		self.mode = NeuralNetwork.ComputingMode['CPU']
 
 
@@ -97,7 +97,7 @@ def main():
 		while True:
 			connection, client_address = sock.accept()
 			while True:
-				data = connection.recv(20).strip()
+				data = connection.recv(50).strip()
 
 				# if connection was closed
 				if not len(data):
@@ -105,13 +105,13 @@ def main():
 
 				print "-------------------------------------"
 				data = get_response(data)
-				print "len - "+str(len(data))
+				#print "len - "+str(len(data))
 
 				for command in data:
-					print "|"+command+"|"
-					for c in command:
-						print "\""+str(c)+"\"",
-					print
+					# print "|"+command+"|"
+					# for c in command:
+					# 	print "\""+str(c)+"\"",
+					# print
 					x, y = command[0], command[1]
 
 					# initialize board
@@ -120,11 +120,13 @@ def main():
 
 					# board (load preloaded board state)
 					elif x == ord('b') and y == ord('o'):
+						print "start board transfer"
 						loading_board = True
 						board = np.zeros((2, 19, 19))
 
 					# done (loading board state)
 					elif x == ord('d') and y == ord('o'):
+						print "end board transfer"
 						brain.load_board(board)
 						loading_board = False
 
@@ -133,20 +135,19 @@ def main():
 							print "making move"
 							x, y = brain.make_move()
 							output = bytearray([x, y])
-							print "sending " + str(x) + " " + str(y)
+							print "sending " + str(y) + " " + str(x)
 							connection.sendall(output)
 							print "move sent"
 
 					# make enemy move and my move
 					else:
 						if loading_board:
-							player = data[1]
+							player = command[2]
 							board[player, y, x] = 1
 						else:
 							brain.enemy_move(x, y)
 
 			#disconnect(sock, connection)
-
 
 	except KeyboardInterrupt:
 		disconnect(sock, connection)

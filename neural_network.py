@@ -4,14 +4,17 @@ import caffe
 import numpy as np
 import itertools
 import arrays
+import os
 
 class NeuralNetwork:
 	# can't import enum module on metacentrum (I mean, wtf...)
 	# so I had to use this as a workaround
-	TrainedNet = {'Policy': 1, 'PolicyWithOutcomes': 2, 'Value': 3}
-	ComputingMode = {'CPU': 4, 'GPU': 5}
-	Usage = {'Train': 6, 'Test': 7, 'Play': 8}
+	TrainedNet = {'Policy': 1, 'PolicyWithOutcomes': 2, 'Value': 3, 'WinPolicy': 4}
+	ComputingMode = {'CPU': 10, 'GPU': 11}
+	Usage = {'Train': 20, 'Test': 21, 'Play': 22}
 
+	#solver, snapshot, batch_size
+	# iter_limit, save_snapshot, show_plots
 	def __init__(self, args, usage):
 		self.set_computing_mode(args.mode)
 
@@ -19,25 +22,24 @@ class NeuralNetwork:
 		# only for training: dataset, draw_plots, show_plots, save_snapshot, iter_limit
 
 		self.solver = caffe.get_solver(args.solver)
-		self.batch_size = args.batch_size
 
-		self.change_batch_size(self.batch_size)
+		self.batch_size = None
+		self.change_batch_size(args.batch_size)
 
 		if args.load_snapshot is not None:
-
-			# if argument is encapsulated in list
-			if args.load_snapshot[0] != args.load_snapshot[0][0]:
-				self.solver.restore(args.load_snapshot[0])
-			else:
-				self.solver.restore(args.load_snapshot)
+			self.restore_snapshot(args.load_snapshot)
 		self.solver.test_nets[0].share_with(self.solver.net)
 
-		self.net = args.net
+		self.net_type = args.net
 
 		self.boards_minibatch = np.array([])
 		self.moves_minibatch = np.array([])
-		if self.net != NeuralNetwork.TrainedNet['Policy']:
+
+		# only basic policy network doesnt need outcomes
+		if self.net_type != NeuralNetwork.TrainedNet['Policy']:
 			self.outcomes_minibatch = []
+
+		self.learning_rate = 0.001
 
 		if usage != NeuralNetwork.Usage['Play']:
 			# this data is not relevant when using NN
@@ -45,18 +47,12 @@ class NeuralNetwork:
 
 			self.dataset = np.load(args.dataset)
 
-			self.boards_minibatch = []
-			self.moves_minibatch = []
-			# only basic policy network doesnt need outcomes
-
 			self.iter_limit = args.iter_limit
 			self.save_snapshot = args.save_snapshot
 
-			self.draw_plots = args.save_plots or args.show_plots
-			if self.draw_plots:
-				import nn_plot as plt
-				self.plot = plt.NNPlot(args.show_plots, args.save_plots)
+			self.show_progress = args.show_progress
 
+			self.iter = np.array([])
 			self.test = np.array([])
 			self.test_n = np.array([])
 			self.train = np.array([])
@@ -66,7 +62,16 @@ class NeuralNetwork:
 			self.dataset = {'boards': np.array([]), 'outcomes': np.array([]), 'moves': np.array([])}
 
 		self.iter_cnt = 0
-		self.train_set_len = len(self.boards_minibatch) * 2 / 3
+
+		self.train_set_len = len(self.dataset['boards'])
+		#elif self.train_set_len > 0:
+		#	self.train_set_len = len(self.boards_minibatch) * 2 / 3
+		#else:
+		#	raise AttributeError("Dataset length has to be -1 or greater than 0!")
+
+	def restore_snapshot(self, snapshot):
+		self.solver.restore(snapshot)
+		self.solver.test_nets[0].share_with(self.solver.net)
 
 	def load_dataset(self, **kwargs):
 		keys = ['boards', 'moves', 'outcomes']
@@ -76,23 +81,30 @@ class NeuralNetwork:
 			except KeyError:
 				pass
 
-	def load_network_input(self, boards):
-		"""
-		Used for loading boards in play mode (other inputs are not needed)
-		:param boards: numpy array (n,2,19,19) representing board
-		"""
+	def initialize_network_input(self):
+		self.solver.net.blobs['data'].data[...] = -np.ones(self.solver.net.blobs['data'].data.shape)[...]
+
+	def load_input_sample(self, index, data):
 		border = (self.solver.net.blobs['data'].data.shape[-1] - 19) / 2
-
-		tmp_array = -np.ones(self.solver.net.blobs['data'].data.shape)
-		tmp_array[:, :, border:-border, border:-border] = boards[:, :, :, :]
-
-		self.solver.net.blobs['data'].data[:, :, :, :] = np.copy(tmp_array)
+		self.solver.net.blobs['data'].data[index, :, border:-border, border:-border] = data[...]
 
 	def change_batch_size(self, batch_size):
-		input_size = self.solver.net.blobs['data'].data.shape[-1]
+		assert batch_size > 0, "Batch size muse be bigger than 0!"
+		self.batch_size = batch_size
 
-		self.solver.net.blobs['data'].reshape(batch_size, 2, input_size, input_size)
-		self.solver.net.blobs['labels'].reshape(batch_size, 1, 1, 1)
+		n, c, h, w = self.solver.net.blobs['data'].data.shape
+		self.solver.net.blobs['data'].reshape(batch_size, c, h, w)
+
+		n, c, h, w = self.solver.net.blobs['labels'].data.shape
+		self.solver.net.blobs['labels'].reshape(batch_size, c, h, w)
+
+	def set_single_input_value(self, board, player, y, x):
+		assert player == 0 or player == 1, "\"Player\" value must be 0 (my board) or 1 (enemy board)!"
+
+		border = (self.solver.net.blobs['data'].data.shape[-1] - 19) / 2
+		y += border
+		x += border
+		self.solver.net.blobs['data'].data[board, player, y, x] = 1
 
 	def set_computing_mode(self, mode):
 		if mode == NeuralNetwork.ComputingMode['CPU']:
@@ -118,7 +130,7 @@ class NeuralNetwork:
 						print "gpu id: " + str(gpu_id)
 						raise NameError("GPU ID not parsed out correctly!")
 
-			# TODO: GPU ID parsing not working correctly (code is correct,
+			# TODO: GPU ID activation not working correctly (code is correct though)
 			caffe.set_mode_gpu()
 			#caffe.set_device(gpu_id)
 			caffe.set_device(0)
@@ -126,7 +138,7 @@ class NeuralNetwork:
 			raise Exception("Wrong mode! Choose \"CPU\" or \"GPU\".")
 
 	def get_iter_cnt(self):
-		if self.net == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
+		if self.net_type == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 			return self.iter_cnt
 		else:
 			return self.solver.iter
@@ -134,28 +146,55 @@ class NeuralNetwork:
 	def train_net(self):
 		try:
 
-			if self.draw_plots:
-					import progress
+			if self.show_progress:
+					import progress_bar
+					progress_bar.printProgress(0, self.iter_limit, prefix='Progress:', suffix='Complete', length=50, decimals=2)
 
 			while self.get_iter_cnt() < self.iter_limit:
-				self.solver, train, train_n = self.transform_data_and_compute(NeuralNetwork.Usage['Train'])
-				test, test_n, loss = self.transform_data_and_compute(NeuralNetwork.Usage['Test'])
+				self.transform_data_and_compute(NeuralNetwork.Usage['Train'])
+				train = self.solver.net.blobs['accuracy'].data
 
-				# this net doesn't use solver from framework
+				if self.net_type == NeuralNetwork.TrainedNet['Value']:
+					train_n = 0
+				else:
+					train_n = self.solver.net.blobs['accuracy5'].data
+				#test, test_n, loss = self.transform_data_and_compute(NeuralNetwork.Usage['Test'])
+
+				loss = self.solver.net.blobs['loss'].data
+
+				# Policy network using outcomes doesn't use solver from framework
 				# so solver.iter doesn't get update and can't be assigned
 				# so I count iterations manually
+				if self.net_type == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
+					self.iter_cnt += 12 * self.batch_size
+
+					if self.iter_cnt % 24996 == 0:
+						self.solver.snapshot()
+
+						import os
+						os.rename("./net_snapshot_iter_0.caffemodel", "./net_snapshot_iter_"+self.iter_cnt+".caffemodel")
+						os.rename("./net_snapshot_iter_0.solverstate", "./net_snapshot_iter_"+self.iter_cnt+".solverstate")
+
+					from math import floor, log10
+
+					number_of_divisions = 8
+					if number_of_divisions * self.iter_cnt / self.iter_limit != int(log10(0.001 / self.learning_rate)):
+						self.learning_rate /= 5
 
 				it = self.get_iter_cnt()
 
-				if self.draw_plots:
-					progress.printProgress(it, self.iter_limit, prefix='Progress:', suffix='Complete', length=50, decimals=2)
+				if it > 40:
+					import sys
+					sys.exit()
 
-					self.plot.add_iter(it, test, test_n, train, train_n, loss)
+				if self.show_progress:
+					progress_bar.printProgress(it, self.iter_limit, prefix='Progress:', suffix='Complete', length=50, decimals=2)
 
-				self.test = np.append(self.test, test)
-				self.test_n = np.append(self.test, test_n)
+				self.iter = np.append(self.iter, it)
+				# self.test = np.append(self.test, test)
+				# self.test_n = np.append(self.test, test_n)
 				self.train = np.append(self.train, train)
-				self.train_n = np.append(self.train, train_n)
+				self.train_n = np.append(self.train_n, train_n)
 				self.loss = np.append(self.loss, loss)
 
 		except KeyboardInterrupt:
@@ -173,15 +212,7 @@ class NeuralNetwork:
 		if self.save_snapshot:
 			self.solver.snapshot()
 
-		np.savez("stats" + str(it), iter=self.iter_cnt, test=self.test,
-			test_n=self.test_n, train=self.train, train_n=self.train_n, loss=self.loss)
-
-		try:
-			if self.plot.show_plot:
-				print ""
-			self.plot.draw()
-		except AttributeError:
-			pass
+		np.savez("stats" + str(it), iter=self.iter, train=self.train, train_n=self.train_n, loss=self.loss)
 
 	def generate_indices(self):
 		rng = self.dataset['boards'].shape[0]
@@ -189,49 +220,74 @@ class NeuralNetwork:
 
 		# only policy network with outcomes requires special minibatch
 		# (all outcomes must be win / lose (True/False))
-		if self.net != NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
-			return indices
 
-		win = True
-		loss = False
+		if self.net_type == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
+			#return indices
 
-		wins, loses = 0, 0
+			win = True
+			loss = False
 
-		for i in range(self.batch_size):
-			if self.dataset['outcomes'][indices[i]] == win:
-				wins += 1
+			wins, loses = 0, 0
+
+			for i in range(self.batch_size):
+				if self.dataset['outcomes'][indices[i]] == win:
+					wins += 1
+				else:
+					loses += 1
+
+			if wins > loses:
+				different_outcome = loss
 			else:
-				loses += 1
+				different_outcome = win
 
-		if wins > loses:
-			different_outcome = loss
-		else:
-			different_outcome = win
+			# iterate over indices
+			for i in range(self.batch_size):
+				if self.dataset['outcomes'][indices[i]] == different_outcome:
+					while True:
+						tmp = np.random.randint(rng)
+						if (tmp not in indices) and self.dataset['outcomes'][tmp] != different_outcome:
+							break
+					indices[i] = tmp
 
+		elif self.net_type == NeuralNetwork.TrainedNet['WinPolicy']:
+			loss = False
 
-		# iterate over indices
-		for i in range(len(indices)):
-			if self.dataset['outcomes'][indices[i]] == different_outcome:
-				while True:
-					tmp = np.random.randint(rng)
-					if (tmp not in indices) and self.dataset['outcomes'][tmp] != different_outcome:
-						break
-				indices[i] = tmp
+			for i in range(self.batch_size):
+				while self.dataset['outcomes'][indices[i]] == loss:
+					indices[i] = np.random.choice(rng, 1)[0]
+
+		# no point in training value network on early boards
+		elif self.net_type == NeuralNetwork.TrainedNet['Value']:
+			for i in range(self.batch_size):
+				while np.sum(self.dataset['boards'][indices[i]]) < 20:
+					indices[i] = np.random.choice(rng, 1)[0]
+
 		return indices
 
 	# Function prepares data and passes them further to NN
 	def transform_data_and_compute(self, usage):
 		indices = self.generate_indices()
 
-		# n last moves
-		# indices = range(len(moves) - size,len(moves))
+		self.boards_minibatch = np.copy(self.dataset['boards'][indices, :, :])
+		if self.net_type != NeuralNetwork.TrainedNet['Value']:
+			self.moves_minibatch = np.copy(self.dataset['moves'][indices, :])
 
-		self.boards_minibatch = self.dataset['boards'][indices, :, :]
-		self.moves_minibatch = self.dataset['moves'][indices, :]
+		# used with universal dataset
+		# if self.net_type != NeuralNetwork.TrainedNet['Value']:
+		# 	self.boards_minibatch = self.dataset['boards'][indices, :, :]
+		# 	self.moves_minibatch = np.copy(self.dataset['moves'][indices, :])
+		#
+		# else:
+		# 	self.boards_minibatch = np.copy(self.dataset['boards'][indices, :, :])
+		# 	for i in range(self.batch_size):
+		# 		y, x = self.dataset['moves'][indices[i]]
+		# 		self.boards_minibatch[i, y, x] = 1
 
-		if self.net != NeuralNetwork.TrainedNet['Policy']:
-			self.outcomes_minibatch = self.dataset['outcomes'][indices]
-
+		if self.net_type != NeuralNetwork.TrainedNet['Policy']:
+			tmp = []
+			for a in self.dataset['outcomes'][indices]:
+				tmp.append([[[int(a), int(not a)]]])
+			self.outcomes_minibatch = np.stack(tmp, axis=0)
 
 		# get padding size from net
 		border = (self.solver.net.blobs['data'].data.shape[-1] - 19) / 2
@@ -252,14 +308,25 @@ class NeuralNetwork:
 
 		# train on current board and move
 		if usage == NeuralNetwork.Usage['Train']:
+			if self.net_type == NeuralNetwork.TrainedNet['Value']:
+				self.solver.net.blobs['labels'].data[...] = self.outcomes_minibatch[...]
 			return self.transform_train()
 			# return train(solver, boards_out, moves, mode)
-		elif usage == NeuralNetwork.Usage['Test']:
-			# guess,n_guess,loss
-			return self.step(usage)
-		elif usage == NeuralNetwork.Usage['Play']:
-			# array of most probable moves
-			return self.step(usage)
+		else:
+			self.solver.net.blobs['data'].data[...] = self.boards_minibatch[...]
+
+			if self.net_type == NeuralNetwork.TrainedNet['Value']:
+				self.solver.net.blobs['labels'].data[...] = self.outcomes_minibatch[...]
+			else:
+				for i in range(len(self.moves_minibatch)):
+					self.solver.net.blobs['labels'].data[i] = (self.moves_minibatch[i][0]) * 19 + (self.moves_minibatch[i][1])
+
+			if usage == NeuralNetwork.Usage['Test']:
+				# guess,n_guess,loss
+				return self.step(usage)
+			elif usage == NeuralNetwork.Usage['Play']:
+				# array of most probable moves
+				return self.step(usage)
 
 	def transform_train(self):
 		# Function transforms boards and moves (for better training results) and trains net
@@ -269,35 +336,50 @@ class NeuralNetwork:
 
 		# iterate over transformations
 		for t in transformations:
-			for i in range(len(self.moves_minibatch)):
-				self.boards_minibatch[i, 0], self.boards_minibatch[i, 1], self.moves_minibatch[i] = \
+			# transform each two boards of minibatch
+			for i in range(self.batch_size):
+				self.boards_minibatch[i, 0], self.boards_minibatch[i, 1] = \
 					t(self.boards_minibatch[i, 0], board_size), \
-					t(self.boards_minibatch[i, 1], board_size), \
-					t(self.moves_minibatch[i], board_size)
+					t(self.boards_minibatch[i, 1], board_size)
 
-			# iterate over rotations
+			# transform each move
+			if self.net_type != NeuralNetwork.TrainedNet['Value']:
+				for i in range(self.batch_size):
+					self.moves_minibatch[i] = t(self.moves_minibatch[i], board_size)
+
+			# iterate  over rotations
 			for r in range(0, 4):
 
 				# rotate board
-				for i in range(len(self.moves_minibatch)):
-					self.boards_minibatch[i][0], self.boards_minibatch[i][1], self.moves_minibatch[i] = \
-						arrays.rotate_clockwise(self.boards_minibatch[i][0], board_size), \
-						arrays.rotate_clockwise(self.boards_minibatch[i][1], board_size), \
-						arrays.rotate_clockwise(self.moves_minibatch[i], board_size)
+				for j in range(self.batch_size):
+					self.boards_minibatch[j][0], self.boards_minibatch[j][1] = \
+						arrays.rotate_clockwise(self.boards_minibatch[j][0], board_size), \
+						arrays.rotate_clockwise(self.boards_minibatch[j][1], board_size)
 
 				# load boards
-				#
-				solver, train_guess, train_guess_n = \
-					self.step(NeuralNetwork.Usage['Train'])
+				self.solver.net.blobs['data'].data[...] = self.boards_minibatch[...]
+
+				# load moves
+				if self.net_type != NeuralNetwork.TrainedNet['Value']:
+					for i in range(self.batch_size):
+						self.moves_minibatch[i] = arrays.rotate_clockwise(self.moves_minibatch[i], board_size)
+
+					for i in range(len(self.moves_minibatch)):
+						self.solver.net.blobs['labels'].data[i] = (self.moves_minibatch[i][0]) * 19 + (self.moves_minibatch[i][1])
+
+				self.step(NeuralNetwork.Usage['Train'])
 
 			# flip board back
-			for i in range(len(self.moves_minibatch)):
-				self.boards_minibatch[i, 0], self.boards_minibatch[i, 1], self.moves_minibatch[i] = \
+			for i in range(self.batch_size):
+				self.boards_minibatch[i, 0], self.boards_minibatch[i, 1] = \
 					t(self.boards_minibatch[i, 0], board_size),\
-					t(self.boards_minibatch[i, 1], board_size), \
-					t(self.moves_minibatch[i], board_size)
+					t(self.boards_minibatch[i, 1], board_size)
 
-		return self.solver, train_guess, train_guess_n
+				# value network does not use moves
+				if self.net_type != NeuralNetwork.TrainedNet['Value']:
+					self.moves_minibatch[i] = t(self.moves_minibatch[i], board_size)
+
+		return
 
 	def step(self, usage):
 		# Function trains net and returns tuple respectively depending on "mode" argument
@@ -305,15 +387,10 @@ class NeuralNetwork:
 		# @param mode == "test" -> @return acc(guessed move),acc(move in top 5 most probable),loss
 		# @param mode == "play" -> @return list(top 5 probable moves)
 
-		# load expected move
-		if usage != NeuralNetwork.Usage['Play']:
-			for i in range(len(self.moves_minibatch)):
-				self.solver.net.blobs['labels'].data[i] = (self.moves_minibatch[i][0]) * 19 + (self.moves_minibatch[i][1])
-
 		# move is the most probable
 		if usage == NeuralNetwork.Usage['Train']:
 
-			if self.net == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
+			if self.net_type == NeuralNetwork.TrainedNet['PolicyWithOutcomes']:
 				self.solver.net.forward()
 
 				# if not outcomes[0]:
@@ -329,25 +406,29 @@ class NeuralNetwork:
 					if len(self.solver.net.layers[k].blobs) == 0:
 						continue
 
-					self.solver.net.layers[k].blobs[0].diff[...] *= 0.001  # weights
-					self.solver.net.layers[k].blobs[1].diff[...] *= 0.001  # biases
+					self.solver.net.layers[k].blobs[0].diff[...] *= self.learning_rate  # weights
+					self.solver.net.layers[k].blobs[1].diff[...] *= self.learning_rate  # biases
 
 					# play with outcomes
 
 					win_multiplier = 1
 
-					if not self.outcomes_minibatch[0]:
+					if not self.outcomes_minibatch[0, 0, 0, 0]:
 						win_multiplier = -1
 
 					self.solver.net.layers[k].blobs[0].data[...] -= win_multiplier * self.solver.net.layers[k].blobs[0].diff
 					self.solver.net.layers[k].blobs[1].data[...] -= win_multiplier * self.solver.net.layers[k].blobs[1].diff
 
+				# from layer import show_l
 				# last_conv = last_conv = sorted([l for l in solver.net.blobs.keys() if l[0:4] == "conv"])[-1]
 				# la.show_l(solver, last_conv, "b", 256, 1)
 			else:
+				# from layer import show_l
+				# last_conv = last_conv = sorted([l for l in self.solver.net.blobs.keys() if l[0:4] == "conv"])[-1]
+				# show_l(self.solver, "conv1", "p", 32, 64)
 				self.solver.step(1)
 
-			return self.solver, self.solver.net.blobs['accuracy'].data, self.solver.net.blobs['accuracy5'].data
+			return
 
 		elif usage == NeuralNetwork.Usage['Test']:
 			self.solver.net.forward()
@@ -357,11 +438,16 @@ class NeuralNetwork:
 		elif usage == NeuralNetwork.Usage['Play']:
 			self.solver.net.forward()
 
-			if self.net == NeuralNetwork.TrainedNet['Value']:
-				return self.solver.net.blobs['out'].data[0, 0, 0, 0]
-
 			# find last convolution layer name
-			last_conv = sorted([layer for layer in self.solver.net.blobs.keys() if layer[0:4] == "conv"])[-1]
+			last_conv = sorted([l for l in self.solver.net.blobs.keys() if l[0:4] == "conv"])[-1]
+			# show_l(self.solver, last_conv, "b", 1, 1)
+
+			if self.net_type == NeuralNetwork.TrainedNet['Value']:
+				return self.solver.net.blobs['out'].data[0, 0, 0, 0], self.solver.net.blobs['out'].data[0, 0, 0, 1]
+
 
 			# return most probable move
-			return arrays.find_n_max_2d(self.solver.net.blobs[last_conv].data[0].reshape(19, 19), 5)
+			result_moves = []
+			for i in range(self.solver.net.blobs['data'].data.shape[0]):
+				result_moves.append(arrays.find_n_max_2d(self.solver.net.blobs[last_conv].data[i].reshape(19, 19), 10))
+			return result_moves

@@ -8,14 +8,13 @@ def parse_args():
 	import sys
 	parser = argparse.ArgumentParser()
 	parser.add_argument('-b', '--batch_size', required=True, type=int)
-	parser.add_argument('-d', '--dataset', default="./boards2.npz")
+	parser.add_argument('-d', '--dataset', default="./boards.npz")
 	parser.add_argument('-i', '--iter_limit', type=int, default=100000)
-	parser.add_argument('-l', '--load_snapshot', nargs=1)
+	parser.add_argument('-l', '--load_snapshot')
 	parser.add_argument('-m', '--mode', required=True, choices=['CPU', 'GPU'], help='CPU/GPU')
 	parser.add_argument('-n', '--net', required=True,
-		choices=['P', 'PWO', 'V'], help='Policy net, Policy without outcomes or Value network')
-	parser.add_argument('-p', '--show_plots', action='store_true')
-	parser.add_argument('-r', '--save_plots', action='store_true')
+		choices=['P', 'PWO', 'V', 'WP'], help='Policy net, Policy without outcomes or Value network')
+	parser.add_argument('-r', '--show_progress', action='store_true')
 	parser.add_argument('-s', '--solver', required=True)
 	parser.add_argument('-v', '--save_snapshot', action='store_true')
 
@@ -38,8 +37,10 @@ def parse_args():
 		args.net = NeuralNetwork.TrainedNet['PolicyWithOutcomes']
 	elif args.net == "V":
 		args.net = NeuralNetwork.TrainedNet['Value']
+	elif args.net == "WP":
+		args.net = NeuralNetwork.TrainedNet['WinPolicy']
 	else:
-		raise Exception("Wrong trained net argument! Choose \"P\", \"PWO\" or \"V\".")
+		raise Exception("Wrong trained net argument! Choose \"P\", \"PWO\", \"WP\" or \"V\".")
 
 	return args
 
